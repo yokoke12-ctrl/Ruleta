@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta de Rarezas Dinámica</title>
+    <title>Ruleta de Rarezas Dinámica con Sonido y Mute</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -70,6 +70,28 @@
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         
+        /* Botón de Silencio (Mute) */
+        .btn-mute {
+            position: absolute;
+            top: 10px;
+            right: -10px;
+            margin-top: 0;
+            padding: 10px;
+            font-size: 20px;
+            background-color: #ffffff;
+            border: 2px solid #ddd;
+            border-radius: 50%;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            cursor: pointer;
+            z-index: 15;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-mute:hover { background-color: #f0f0f0; }
+
         .resultado-box {
             margin-top: 15px;
             display: flex;
@@ -133,7 +155,7 @@
             border-left: 4px solid #007bff;
         }
 
-        /* ESTILOS DEL MENÚ FLOTANTE (MODAL) */
+        /* ESTILOS DEL MENÚ FLOTANTE */
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
@@ -228,6 +250,8 @@
     
     <div class="container">
         <div class="canvas-container">
+            <button id="btnMute" class="btn-mute" onclick="conmutarSilencio()">🔊</button>
+
             <div class="flecha"></div>
             <canvas id="ruleta" width="350" height="350"></canvas>
             <button id="btnGirar" onclick="girar()">¡GIRAR!</button>
@@ -263,7 +287,6 @@
     let numeroTirada = 1;
     let indiceMejorPremio = -1;
 
-    // Configuración base de la ruleta
     let sectores = [
         { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },
         { nombre: 'Rojo', color: '#ff4d4d', peso: 2.0 },
@@ -281,16 +304,91 @@
     const txtContador = document.getElementById('contador-tiradas');
     const txtPremio = document.getElementById('txtPremio');
     const cuadroPremio = document.getElementById('cuadroPremio');
+    const btnMute = document.getElementById('btnMute');
 
     let anguloActual = 0;
     let ejecutando = false;
+    
+    // CONTROL DE SONIDOS Y SILENCIO
+    let audioCtx = null;
+    let sonidoSilenciado = false; // Estado inicial: con sonido activo
 
-    // Funciones para controlar el Menú Flotante
+    function iniciarAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
+
+    function conmutarSilencio() {
+        sonidoSilenciado = !sonidoSilenciado;
+        if (sonidoSilenciado) {
+            btnMute.textContent = "🔇";
+        } else {
+            btnMute.textContent = "🔊";
+            iniciarAudio(); // Asegura activación si se activa el sonido manualmente
+        }
+    }
+
+    function sonarTic() {
+        if (sonidoSilenciado) return; // Si está silenciado, no hace nada
+        iniciarAudio();
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.05);
+    }
+
+    function sonarVictoriaNormal() {
+        if (sonidoSilenciado) return;
+        iniciarAudio();
+        let notas = [440, 554, 659, 880];
+        notas.forEach((frec, i) => {
+            let osc = audioCtx.createOscillator();
+            let gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.setValueAtTime(frec, audioCtx.currentTime + (i * 0.1));
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime + (i * 0.1));
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + (i * 0.1) + 0.3);
+            osc.start(audioCtx.currentTime + (i * 0.1));
+            osc.stop(audioCtx.currentTime + (i * 0.1) + 0.3);
+        });
+    }
+
+    function sonarVictoriaDorada() {
+        if (sonidoSilenciado) return;
+        iniciarAudio();
+        let duracion = 1.5;
+        let osc = audioCtx.createOscillator();
+        let gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(261.6, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(1046.5, audioCtx.currentTime + duracion);
+        
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + duracion);
+        
+        osc.start();
+        osc.stop(audioCtx.currentTime + duracion);
+    }
+
     function abrirModal() {
         document.getElementById('modalPremios').style.display = 'flex';
     }
 
     function guardarPremios() {
+        iniciarAudio();
         sectores[0].nombre = document.getElementById('inpDorado').value || 'Dorado';
         sectores[1].nombre = document.getElementById('inpRojo').value || 'Rojo';
         sectores[2].nombre = document.getElementById('inpMorado').value || 'Morado';
@@ -298,10 +396,7 @@
         sectores[4].nombre = document.getElementById('inpVerde').value || 'Verde';
         sectores[5].nombre = document.getElementById('inpAzul').value || 'Azul';
 
-        // Ocultar el menú y dibujar la ruleta con los nuevos nombres
         document.getElementById('modalPremios').style.display = 'none';
-        
-        // Si se cambian premios a mitad de juego, reseteamos el récord visual por comodidad
         if(indiceMejorPremio !== -1) {
             txtPremio.textContent = sectores[indiceMejorPremio].nombre;
         }
@@ -331,7 +426,6 @@
             ctx.fillStyle = "#333";
             ctx.font = "bold 12px sans-serif";
             
-            // Si el nombre del premio es muy largo, lo recortamos visualmente en la ruleta
             let textoMostrar = sector.nombre;
             if(textoMostrar.length > 15) textoMostrar = textoMostrar.substring(0,13) + '...';
             
@@ -376,8 +470,11 @@
         const gradosExtra = Math.random() * 2 * Math.PI;
         const anguloObjetivo = anguloActual + (vueltas * 2 * Math.PI) + gradosExtra;
         
-        const duracion = 3500;
+        const duracion = 3800;
         const inicioAnimacion = performance.now();
+        
+        let ultimoAnguloAcumulado = anguloActual;
+        const arcoTic = (2 * Math.PI) / 12;
 
         function animar(ahora) {
             const progreso = (ahora - inicioAnimacion) / duracion;
@@ -385,6 +482,12 @@
             if (progreso < 1) {
                 const multiplicador = 1 - Math.pow(1 - progreso, 3);
                 anguloActual = anguloObjetivo * multiplicador;
+                
+                if (Math.abs(anguloActual - ultimoAnguloAcumulado) >= arcoTic) {
+                    sonarTic();
+                    ultimoAnguloAcumulado = anguloActual;
+                }
+
                 dibujarRuleta();
                 requestAnimationFrame(animar);
             } else {
@@ -419,7 +522,6 @@
         cuadroResultado.style.display = "block";
         txtResultado.textContent = `¡Ganaste: ${ganador.nombre}!`;
 
-        // Récord del premio más raro (índice menor es más raro)
         if (indiceMejorPremio === -1 || indiceGanador < indiceMejorPremio) {
             indiceMejorPremio = indiceGanador;
             cuadroPremio.style.backgroundColor = ganador.color;
@@ -427,18 +529,20 @@
             txtPremio.style.color = "#333";
         }
         
-        // Si sale el Dorado, se reinicia la ruleta
         if (indiceGanador === 0) {
-            alert(`¡Felicidades! Te llevaste el premio máximo: ${ganador.nombre}`);
-            reiniciarTodo();
+            sonarVictoriaDorada();
+            setTimeout(() => {
+                alert(`¡Felicidades! Te llevaste el premio máximo: ${ganador.nombre}`);
+                reiniciarTodo();
+            }, 100);
             return;
+        } else {
+            sonarVictoriaNormal();
         }
 
-        // Penalización al color ganador (cede peso)
         const penalizacion = ganador.peso * 0.25;
         ganador.peso -= penalizacion;
 
-        // Distribución hacia arriba (los más raros)
         let coloresParaAyudar = indiceGanador; 
         if (coloresParaAyudar > 1) {
             const reparto = penalizacion / (coloresParaAyudar - 1);
@@ -446,23 +550,23 @@
                 sectores[i].peso += reparto;
             }
         } else {
-            sectores[5].peso += penalizacion; // Equilibrio si sale el Rojo
+            sectores[5].peso += penalizacion;
         }
 
         numeroTirada++;
 
-        // Ajustes finos de probabilidad por tirada para el Dorado (Máx 2% en tirada 6)
         if (numeroTirada <= 6) {
             sectores[0].peso = 0.5 + (numeroTirada * 0.25); 
         } else if (numeroTirada >= 7) {
-            // El Dorado explota al 30% en turnos 7 y 8
             const sumaOtros = sectores.slice(1).reduce((sum, s) => sum + s.peso, 0);
             sectores[0].peso = (sumaOtros * 0.3) / 0.7;
         }
 
         if (numeroTirada > 8) {
-            alert("¡Alcanzaste el límite de 8 tiradas! Reiniciando ruleta...");
-            reiniciarTodo();
+            setTimeout(() => {
+                alert("¡Alcanzaste el límite de 8 tiradas! Reiniciando ruleta...");
+                reiniciarTodo();
+            }, 500);
             return;
         }
 
@@ -483,9 +587,6 @@
         ejecutando = false;
         btnGirar.disabled = false;
     }
-
-    // Al cargar por primera vez, no dibuja la ruleta hasta que configuren los premios
-    // El modal se muestra automáticamente gracias al HTML
 </script>
 
 </body>
