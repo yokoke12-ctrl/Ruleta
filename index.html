@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ruleta con Suerte Dorada</title>
+    <title>Ruleta de Rarezas Dinámica</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -60,16 +60,48 @@
             padding: 12px 30px;
             font-size: 18px;
             font-weight: bold;
-            background-color: #28a745;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 25px;
             cursor: pointer;
             transition: background 0.2s;
         }
-        button:hover { background-color: #218838; }
+        button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         
+        /* Contenedor del resultado visual */
+        .resultado-box {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 22px;
+            font-weight: bold;
+            min-height: 40px;
+        }
+        .cuadro-color {
+            width: 30px;
+            height: 30px;
+            border-radius: 5px;
+            border: 2px solid #333;
+            display: none;
+        }
+        
+        /* Contenedor del Premio Mayor */
+        .premio-record {
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
         .panel {
             background: white;
             padding: 20px;
@@ -97,62 +129,78 @@
             color: #666;
             margin-top: 15px;
             line-height: 1.4;
-            background: #fff3cd;
+            background: #e3f2fd;
             padding: 10px;
             border-radius: 5px;
-            border-left: 4px solid #ffc107;
-        }
-        #resultado {
-            margin-top: 15px;
-            font-size: 22px;
-            font-weight: bold;
-            min-height: 33px;
+            border-left: 4px solid #007bff;
         }
     </style>
 </head>
 <body>
 
-    <h1>Ruleta de 6 Colores</h1>
-    <div id="contador-tiradas">Tirada: 1</div>
+    <h1>Ruleta de Rarezas</h1>
+    <div id="contador-tiradas">Tirada actual: 1 / 8</div>
     
     <div class="container">
+        <!-- Zona Izquierda: Ruleta y Resultados -->
         <div class="canvas-container">
             <div class="flecha"></div>
             <canvas id="ruleta" width="350" height="350"></canvas>
             <button id="btnGirar" onclick="girar()">¡GIRAR!</button>
-            <div id="resultado"></div>
+            
+            <!-- Mensaje del color que ha salido + cuadro de color -->
+            <div class="resultado-box">
+                <div id="cuadroResultado" class="cuadro-color"></div>
+                <div id="txtResultado">¡Prueba tu suerte!</div>
+            </div>
+
+            <!-- Récord del mejor premio obtenido -->
+            <div class="premio-record">
+                <span>Tu premio es de color:</span>
+                <div id="cuadroPremio" class="cuadro-color" style="display:inline-block; width:20px; height:20px; background-color:#ccc; border:1px solid #333;"></div>
+                <span id="txtPremio" style="color: #666;">Ninguno aún</span>
+            </div>
         </div>
 
+        <!-- Zona Derecha: Panel de Probabilidades -->
         <div class="panel">
-            <h3>Probabilidades Actuales</h3>
+            <h3>Escala de Rarezas</h3>
             <div id="lista-colores"></div>
             <div class="info">
-                <strong>Regla de Oro:</strong> El color Dorado inicia con solo un 0.5%. Al llegar a la <strong>tirada 7</strong>, su probabilidad sube automáticamente al 30% para compensar la mala racha.
+                <strong>Reglas del Juego:</strong><br>
+                1. El Dorado es casi imposible. Crece muy poco a poco (máx 3% en tirada 6). En la <strong>tirada 7 y 8 explota al 30%</strong>.<br>
+                2. Los demás colores siguen una escala de rareza fija (Rojo > Morado > Naranja > Verde > Azul).<br>
+                3. Al girar, el color que sale reduce su tamaño y se lo cede a los colores <strong>más raros que él</strong> para ajustar la escala de forma limpia.<br>
+                4. Máximo 8 tiradas. Luego el contador se reinicia.
             </div>
         </div>
     </div>
 
 <script>
-    // Contador de tiradas actual
     let numeroTirada = 1;
+    let indiceMejorPremio = -1; // -1 significa ningún premio aún
 
-    // Configuración con 6 colores. Usamos un sistema de "pesos" sobre base 100.
-    // El Dorado empieza con 0.5 (casi imposible). Los otros reparten el 99.5 restante.
+    // Configuración inicial de colores en estricto orden de RAREZA (Menos probable a Más probable)
+    // El índice 0 es el más raro (Dorado), el índice 5 es el más común (Azul)
     let sectores = [
-        { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },
-        { nombre: 'Rojo', color: '#ff4d4d', peso: 19.9 },
-        { nombre: 'Azul', color: '#4da6ff', peso: 19.9 },
-        { nombre: 'Verde', color: '#4dff88', peso: 19.9 },
-        { nombre: 'Amarillo', color: '#ffff4d', peso: 19.9 },
-        { nombre: 'Morado', color: '#b366ff', peso: 19.9 }
+        { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },  // Ultra Raro
+        { nombre: 'Rojo', color: '#ff4d4d', peso: 8.5 },   // Muy Raro
+        { nombre: 'Morado', color: '#b366ff', peso: 14.0 },  // Raro
+        { nombre: 'Naranja', color: '#ff944d', peso: 20.0 }, // Intermedio
+        { nombre: 'Verde', color: '#4dff88', peso: 26.0 },   // Común
+        { nombre: 'Azul', color: '#4da6ff', peso: 31.0 }     // Muy Común
     ];
 
     const canvas = document.getElementById('ruleta');
     const ctx = canvas.getContext('2d');
     const btnGirar = document.getElementById('btnGirar');
-    const txtResultado = document.getElementById('resultado');
+    const txtResultado = document.getElementById('txtResultado');
+    const cuadroResultado = document.getElementById('cuadroResultado');
     const txtContador = document.getElementById('contador-tiradas');
     
+    const txtPremio = document.getElementById('txtPremio');
+    const cuadroPremio = document.getElementById('cuadroPremio');
+
     let anguloActual = 0;
     let ejecutando = false;
 
@@ -205,20 +253,21 @@
             `;
             lista.appendChild(fila);
         });
-        txtContador.textContent = `Tirada actual: ${numeroTirada}`;
+        txtContador.textContent = `Tirada actual: ${numeroTirada} / 8`;
     }
 
     function girar() {
         if (ejecutando) return;
         ejecutando = true;
         btnGirar.disabled = true;
+        cuadroResultado.style.display = "none";
         txtResultado.textContent = "Girando...";
 
         const vueltas = Math.floor(Math.random() * 5) + 5;
         const gradosExtra = Math.random() * 2 * Math.PI;
         const anguloObjetivo = anguloActual + (vueltas * 2 * Math.PI) + gradosExtra;
         
-        const duracion = 4000;
+        const duracion = 3500;
         const inicioAnimacion = performance.now();
 
         function animar(ahora) {
@@ -256,37 +305,76 @@
         }
 
         const ganador = sectores[indiceGanador];
-        txtResultado.textContent = `¡Salió el color ${ganador.nombre}!`;
         
-        // --- AVANCE DE TIRADA Y LÓGICA DINÁMICA ---
+        // Mostrar resultado con el cuadro de color incorporado
+        cuadroResultado.style.backgroundColor = ganador.color;
+        cuadroResultado.style.display = "block";
+        txtResultado.textContent = `¡Salió el color ${ganador.nombre}!`;
+
+        // LÓGICA DE REEMPLAZAR POR EL PREMIO MAS RARO (El índice menor es el más raro)
+        if (indiceMejorPremio === -1 || indiceGanador < indiceMejorPremio) {
+            indiceMejorPremio = indiceGanador;
+            cuadroPremio.style.backgroundColor = ganador.color;
+            txtPremio.textContent = ganador.nombre;
+            txtPremio.style.color = "#333";
+        }
+        
+        // --- MANEJO DE PROBABILIDADES EN ESCALA ---
+        if (ganador.nombre === 'Dorado') {
+            reiniciarTodo();
+            return;
+        }
+
+        // El color que sale reduce su peso (pierde un 25% de su tamaño actual)
+        const penalizacion = ganador.peso * 0.25;
+        ganador.peso -= penalizacion;
+
+        // Distribución en escala: El peso perdido se reparte SOLO entre los colores que sean MÁS RAROS que él
+        // Ej: Si sale Verde, ayuda a Naranja, Morado y Rojo. Esto mantiene la escala balanceada.
+        let coloresParaAyudar = indiceGanador; // Cuántos colores hay por encima de él en rareza (sin contar el Dorado)
+        if (coloresParaAyudar > 1) {
+            const reparto = penalizacion / (coloresParaAyudar - 1);
+            for (let i = 1; i < indiceGanador; i++) {
+                sectores[i].peso += reparto;
+            }
+        } else {
+            // Si sale el Rojo (que no tiene a nadie arriba excepto el Dorado), se le devuelve al más común para equilibrar
+            sectores[5].peso += penalizacion;
+        }
+
+        // CONTROL ESTRICTO DEL DORADO POR TIRADAS
         numeroTirada++;
 
-        if (ganador.nombre === 'Dorado') {
-            // Si sale el Dorado, se reinicia la racha por completo
-            sectores[0].peso = 0.5;
-            for(let i=1; i<sectores.length; i++) sectores[i].peso = 19.9;
-            numeroTirada = 1; 
-        } else {
-            // Lógica normal para los otros colores (el ganador pierde 20% de su tamaño)
-            const penalizacion = ganador.peso * 0.20;
-            ganador.peso -= penalizacion;
-            
-            // Repartimos lo que perdió el ganador entre el resto (excepto el dorado)
-            const reparto = penalizacion / (sectores.length - 2); 
-            sectores.forEach((sector, i) => {
-                if (i !== indiceGanador && sector.nombre !== 'Dorado') {
-                    sector.peso += reparto;
-                }
-            });
+        if (numeroTirada <= 6) {
+            // Sube de forma muy controlada un poco por tirada, máximo rondando el 3%
+            sectores[0].peso = 0.5 + (numeroTirada * 0.4); 
+        } else if (numeroTirada >= 7) {
+            // En tirada 7 y 8 el dorado se fuerza a un valor alto (30% de la ruleta)
+            // Calculamos dinámicamente cuánto peso necesita para representar exactamente el 30% del total
+            const sumaOtros = sectores.slice(1).reduce((sum, s) => sum + s.peso, 0);
+            sectores[0].peso = (sumaOtros * 0.3) / 0.7;
         }
 
-        // FORZAR EL REGLAJE DEL DORADO EN LA TIRADA 7 O SUPERIOR
-        if (numeroTirada >= 7 && sectores[0].peso < 30) {
-            // Forzamos al Dorado a valer 42.8 unidades de peso, lo que equivale exactamente al 30% 
-            // de la ruleta cuando el total es aproximado a 142.
-            sectores[0].peso = 42.8; 
+        // REINICIO AL PASAR LAS 8 TIRADAS
+        if (numeroTirada > 8) {
+            alert("¡Alcanzaste el límite de 8 tiradas! Reiniciando ruleta...");
+            reiniciarTodo();
+            return;
         }
 
+        dibujarRuleta();
+        ejecutando = false;
+        btnGirar.disabled = false;
+    }
+
+    function reiniciarTodo() {
+        numeroTirada = 1;
+        sectores[0].peso = 0.5;
+        sectores[1].peso = 8.5;
+        sectores[2].peso = 14.0;
+        sectores[3].peso = 20.0;
+        sectores[4].peso = 26.0;
+        sectores[5].peso = 31.0;
         dibujarRuleta();
         ejecutando = false;
         btnGirar.disabled = false;
