@@ -70,7 +70,6 @@
         button:hover { background-color: #0056b3; }
         button:disabled { background-color: #cccccc; cursor: not-allowed; }
         
-        /* Contenedor del resultado visual */
         .resultado-box {
             margin-top: 15px;
             display: flex;
@@ -88,7 +87,6 @@
             display: none;
         }
         
-        /* Contenedor del Premio Mayor */
         .premio-record {
             margin-top: 15px;
             padding: 10px 20px;
@@ -134,61 +132,145 @@
             border-radius: 5px;
             border-left: 4px solid #007bff;
         }
+
+        /* ESTILOS DEL MENÚ FLOTANTE (MODAL) */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-content h2 { margin-top: 0; color: #333; font-size: 20px; }
+        .modal-content p { font-size: 14px; color: #666; margin-bottom: 20px; }
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .input-group label {
+            width: 100px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .input-group input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        .btn-guardar {
+            width: 100%;
+            margin-top: 15px;
+            background-color: #28a745;
+        }
+        .btn-guardar:hover { background-color: #218838; }
+        
+        .btn-editar-premios {
+            margin-top: 10px;
+            padding: 8px 15px;
+            font-size: 14px;
+            background-color: #6c757d;
+            border-radius: 5px;
+        }
+        .btn-editar-premios:hover { background-color: #5a6268; }
     </style>
 </head>
 <body>
+
+    <div id="modalPremios" class="modal-overlay">
+        <div class="modal-content">
+            <h2>🎁 Configura tus Premios</h2>
+            <p>Escribe qué premio corresponde a cada rareza antes de empezar. Puedes cambiarlos cada vez que abras la página.</p>
+            
+            <div class="input-group">
+                <label style="color: #d4af37;">🥇 Dorado:</label>
+                <input type="text" id="inpDorado" value="Premio Mayor Dorado">
+            </div>
+            <div class="input-group">
+                <label style="color: #ff4d4d;">🔴 Rojo:</label>
+                <input type="text" id="inpRojo" value="Premio Rojo">
+            </div>
+            <div class="input-group">
+                <label style="color: #b366ff;">🟣 Morado:</label>
+                <input type="text" id="inpMorado" value="Premio Morado">
+            </div>
+            <div class="input-group">
+                <label style="color: #ff944d;">🟠 Naranja:</label>
+                <input type="text" id="inpNaranja" value="Premio Naranja">
+            </div>
+            <div class="input-group">
+                <label style="color: #4dff88;">🟢 Verde:</label>
+                <input type="text" id="inpVerde" value="Premio Verde">
+            </div>
+            <div class="input-group">
+                <label style="color: #4da6ff;">🔵 Azul:</label>
+                <input type="text" id="inpAzul" value="Premio Azul">
+            </div>
+
+            <button class="btn-guardar" onclick="guardarPremios()">Confirmar y Jugar</button>
+        </div>
+    </div>
 
     <h1>Ruleta de Rarezas</h1>
     <div id="contador-tiradas">Tirada actual: 1 / 8</div>
     
     <div class="container">
-        <!-- Zona Izquierda: Ruleta y Resultados -->
         <div class="canvas-container">
             <div class="flecha"></div>
             <canvas id="ruleta" width="350" height="350"></canvas>
             <button id="btnGirar" onclick="girar()">¡GIRAR!</button>
             
-            <!-- Mensaje del color que ha salido + cuadro de color -->
             <div class="resultado-box">
                 <div id="cuadroResultado" class="cuadro-color"></div>
                 <div id="txtResultado">¡Prueba tu suerte!</div>
             </div>
 
-            <!-- Récord del mejor premio obtenido -->
             <div class="premio-record">
                 <span>Tu premio es de color:</span>
                 <div id="cuadroPremio" class="cuadro-color" style="display:inline-block; width:20px; height:20px; background-color:#ccc; border:1px solid #333;"></div>
                 <span id="txtPremio" style="color: #666;">Ninguno aún</span>
             </div>
+
+            <button class="btn-editar-premios" onclick="abrirModal()">Cambiar Premios</button>
         </div>
 
-        <!-- Zona Derecha: Panel de Probabilidades -->
         <div class="panel">
             <h3>Escala de Rarezas</h3>
             <div id="lista-colores"></div>
             <div class="info">
                 <strong>Reglas del Juego:</strong><br>
-                1. El Dorado es casi imposible. Crece muy poco a poco (máx 3% en tirada 6). En la <strong>tirada 7 y 8 explota al 30%</strong>.<br>
-                2. Los demás colores siguen una escala de rareza fija (Rojo > Morado > Naranja > Verde > Azul).<br>
-                3. Al girar, el color que sale reduce su tamaño y se lo cede a los colores <strong>más raros que él</strong> para ajustar la escala de forma limpia.<br>
-                4. Máximo 8 tiradas. Luego el contador se reinicia.
+                1. El Dorado inicia en 0.5%. En la tirada 6 sube máximo a 2%. En la <strong>tirada 7 y 8 explota al 30%</strong>.<br>
+                2. Tiradas 1 y 2: Azul y Verde dominan con un 85%.<br>
+                3. Tirada 3 en adelante: Los intermedios (Naranja, Morado, Rojo) aumentan su tamaño considerablemente.<br>
+                4. Máximo 8 tiradas por ronda.
             </div>
         </div>
     </div>
 
 <script>
     let numeroTirada = 1;
-    let indiceMejorPremio = -1; // -1 significa ningún premio aún
+    let indiceMejorPremio = -1;
 
-    // Configuración inicial de colores en estricto orden de RAREZA (Menos probable a Más probable)
-    // El índice 0 es el más raro (Dorado), el índice 5 es el más común (Azul)
+    // Configuración base de la ruleta
     let sectores = [
-        { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },  // Ultra Raro
-        { nombre: 'Rojo', color: '#ff4d4d', peso: 8.5 },   // Muy Raro
-        { nombre: 'Morado', color: '#b366ff', peso: 14.0 },  // Raro
-        { nombre: 'Naranja', color: '#ff944d', peso: 20.0 }, // Intermedio
-        { nombre: 'Verde', color: '#4dff88', peso: 26.0 },   // Común
-        { nombre: 'Azul', color: '#4da6ff', peso: 31.0 }     // Muy Común
+        { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },
+        { nombre: 'Rojo', color: '#ff4d4d', peso: 2.0 },
+        { nombre: 'Morado', color: '#b366ff', peso: 4.5 },
+        { nombre: 'Naranja', color: '#ff944d', peso: 8.0 },
+        { nombre: 'Verde', color: '#4dff88', peso: 35.0 },
+        { nombre: 'Azul', color: '#4da6ff', peso: 50.0 }
     ];
 
     const canvas = document.getElementById('ruleta');
@@ -197,12 +279,34 @@
     const txtResultado = document.getElementById('txtResultado');
     const cuadroResultado = document.getElementById('cuadroResultado');
     const txtContador = document.getElementById('contador-tiradas');
-    
     const txtPremio = document.getElementById('txtPremio');
     const cuadroPremio = document.getElementById('cuadroPremio');
 
     let anguloActual = 0;
     let ejecutando = false;
+
+    // Funciones para controlar el Menú Flotante
+    function abrirModal() {
+        document.getElementById('modalPremios').style.display = 'flex';
+    }
+
+    function guardarPremios() {
+        sectores[0].nombre = document.getElementById('inpDorado').value || 'Dorado';
+        sectores[1].nombre = document.getElementById('inpRojo').value || 'Rojo';
+        sectores[2].nombre = document.getElementById('inpMorado').value || 'Morado';
+        sectores[3].nombre = document.getElementById('inpNaranja').value || 'Naranja';
+        sectores[4].nombre = document.getElementById('inpVerde').value || 'Verde';
+        sectores[5].nombre = document.getElementById('inpAzul').value || 'Azul';
+
+        // Ocultar el menú y dibujar la ruleta con los nuevos nombres
+        document.getElementById('modalPremios').style.display = 'none';
+        
+        // Si se cambian premios a mitad de juego, reseteamos el récord visual por comodidad
+        if(indiceMejorPremio !== -1) {
+            txtPremio.textContent = sectores[indiceMejorPremio].nombre;
+        }
+        dibujarRuleta();
+    }
 
     function dibujarRuleta() {
         const totalPeso = sectores.reduce((sum, s) => sum + s.peso, 0);
@@ -225,8 +329,13 @@
             ctx.rotate(anguloInicio + anguloSector / 2);
             ctx.textAlign = "right";
             ctx.fillStyle = "#333";
-            ctx.font = "bold 13px sans-serif";
-            ctx.fillText(sector.nombre, 150, 5);
+            ctx.font = "bold 12px sans-serif";
+            
+            // Si el nombre del premio es muy largo, lo recortamos visualmente en la ruleta
+            let textoMostrar = sector.nombre;
+            if(textoMostrar.length > 15) textoMostrar = textoMostrar.substring(0,13) + '...';
+            
+            ctx.fillText(textoMostrar, 150, 5);
             ctx.restore();
 
             anguloInicio += anguloSector;
@@ -247,7 +356,7 @@
             fila.innerHTML = `
                 <div style="display:flex; align-items:center;">
                     <span class="color-badge" style="background-color: ${sector.color}"></span>
-                    <span>${sector.nombre}</span>
+                    <span style="font-size:14px; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${sector.nombre}</span>
                 </div>
                 <strong>${porcentaje}%</strong>
             `;
@@ -306,12 +415,11 @@
 
         const ganador = sectores[indiceGanador];
         
-        // Mostrar resultado con el cuadro de color incorporado
         cuadroResultado.style.backgroundColor = ganador.color;
         cuadroResultado.style.display = "block";
-        txtResultado.textContent = `¡Salió el color ${ganador.nombre}!`;
+        txtResultado.textContent = `¡Ganaste: ${ganador.nombre}!`;
 
-        // LÓGICA DE REEMPLAZAR POR EL PREMIO MAS RARO (El índice menor es el más raro)
+        // Récord del premio más raro (índice menor es más raro)
         if (indiceMejorPremio === -1 || indiceGanador < indiceMejorPremio) {
             indiceMejorPremio = indiceGanador;
             cuadroPremio.style.backgroundColor = ganador.color;
@@ -319,43 +427,39 @@
             txtPremio.style.color = "#333";
         }
         
-        // --- MANEJO DE PROBABILIDADES EN ESCALA ---
-        if (ganador.nombre === 'Dorado') {
+        // Si sale el Dorado, se reinicia la ruleta
+        if (indiceGanador === 0) {
+            alert(`¡Felicidades! Te llevaste el premio máximo: ${ganador.nombre}`);
             reiniciarTodo();
             return;
         }
 
-        // El color que sale reduce su peso (pierde un 25% de su tamaño actual)
+        // Penalización al color ganador (cede peso)
         const penalizacion = ganador.peso * 0.25;
         ganador.peso -= penalizacion;
 
-        // Distribución en escala: El peso perdido se reparte SOLO entre los colores que sean MÁS RAROS que él
-        // Ej: Si sale Verde, ayuda a Naranja, Morado y Rojo. Esto mantiene la escala balanceada.
-        let coloresParaAyudar = indiceGanador; // Cuántos colores hay por encima de él en rareza (sin contar el Dorado)
+        // Distribución hacia arriba (los más raros)
+        let coloresParaAyudar = indiceGanador; 
         if (coloresParaAyudar > 1) {
             const reparto = penalizacion / (coloresParaAyudar - 1);
             for (let i = 1; i < indiceGanador; i++) {
                 sectores[i].peso += reparto;
             }
         } else {
-            // Si sale el Rojo (que no tiene a nadie arriba excepto el Dorado), se le devuelve al más común para equilibrar
-            sectores[5].peso += penalizacion;
+            sectores[5].peso += penalizacion; // Equilibrio si sale el Rojo
         }
 
-        // CONTROL ESTRICTO DEL DORADO POR TIRADAS
         numeroTirada++;
 
+        // Ajustes finos de probabilidad por tirada para el Dorado (Máx 2% en tirada 6)
         if (numeroTirada <= 6) {
-            // Sube de forma muy controlada un poco por tirada, máximo rondando el 3%
             sectores[0].peso = 0.5 + (numeroTirada * 0.25); 
         } else if (numeroTirada >= 7) {
-            // En tirada 7 y 8 el dorado se fuerza a un valor alto (30% de la ruleta)
-            // Calculamos dinámicamente cuánto peso necesita para representar exactamente el 30% del total
+            // El Dorado explota al 30% en turnos 7 y 8
             const sumaOtros = sectores.slice(1).reduce((sum, s) => sum + s.peso, 0);
             sectores[0].peso = (sumaOtros * 0.3) / 0.7;
         }
 
-        // REINICIO AL PASAR LAS 8 TIRADAS
         if (numeroTirada > 8) {
             alert("¡Alcanzaste el límite de 8 tiradas! Reiniciando ruleta...");
             reiniciarTodo();
@@ -370,17 +474,18 @@
     function reiniciarTodo() {
         numeroTirada = 1;
         sectores[0].peso = 0.5;
-        sectores[1].peso = 8.5;
-        sectores[2].peso = 14.0;
-        sectores[3].peso = 20.0;
-        sectores[4].peso = 26.0;
-        sectores[5].peso = 31.0;
+        sectores[1].peso = 2.0;
+        sectores[2].peso = 4.5;
+        sectores[3].peso = 8.0;
+        sectores[4].peso = 35.0;
+        sectores[5].peso = 50.0;
         dibujarRuleta();
         ejecutando = false;
         btnGirar.disabled = false;
     }
 
-    dibujarRuleta();
+    // Al cargar por primera vez, no dibuja la ruleta hasta que configuren los premios
+    // El modal se muestra automáticamente gracias al HTML
 </script>
 
 </body>
