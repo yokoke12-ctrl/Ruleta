@@ -347,7 +347,7 @@
 
         if (numeroTirada <= 6) {
             // Sube de forma muy controlada un poco por tirada, máximo rondando el 3%
-            sectores[0].peso = 0.5 + (numeroTirada * 0.4); 
+            sectores[0].peso = 0.5 + (numeroTirada * 0.25); 
         } else if (numeroTirada >= 7) {
             // En tirada 7 y 8 el dorado se fuerza a un valor alto (30% de la ruleta)
             // Calculamos dinámicamente cuánto peso necesita para representar exactamente el 30% del total
