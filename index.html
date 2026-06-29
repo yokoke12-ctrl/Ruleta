@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ruleta con Suerte Dorada</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+        h1 { color: #333; margin-bottom: 5px; }
+        #contador-tiradas {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 20px;
+            background: #e2e8f0;
+            padding: 5px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 40px;
+            max-width: 1000px;
+            width: 100%;
+        }
+        .canvas-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .flecha {
+            width: 0; 
+            height: 0; 
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 25px solid #333;
+            position: absolute;
+            top: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+        }
+        canvas {
+            border-radius: 50%;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background-color: #fff;
+        }
+        button {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #218838; }
+        button:disabled { background-color: #cccccc; cursor: not-allowed; }
+        
+        .panel {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            min-width: 300px;
+            flex: 1;
+        }
+        .color-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .color-badge {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+        }
+        .info {
+            font-size: 13px;
+            color: #666;
+            margin-top: 15px;
+            line-height: 1.4;
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            border-left: 4px solid #ffc107;
+        }
+        #resultado {
+            margin-top: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            min-height: 33px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Ruleta de 6 Colores</h1>
+    <div id="contador-tiradas">Tirada: 1</div>
+    
+    <div class="container">
+        <div class="canvas-container">
+            <div class="flecha"></div>
+            <canvas id="ruleta" width="350" height="350"></canvas>
+            <button id="btnGirar" onclick="girar()">¡GIRAR!</button>
+            <div id="resultado"></div>
+        </div>
+
+        <div class="panel">
+            <h3>Probabilidades Actuales</h3>
+            <div id="lista-colores"></div>
+            <div class="info">
+                <strong>Regla de Oro:</strong> El color Dorado inicia con solo un 0.5%. Al llegar a la <strong>tirada 7</strong>, su probabilidad sube automáticamente al 30% para compensar la mala racha.
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Contador de tiradas actual
+    let numeroTirada = 1;
+
+    // Configuración con 6 colores. Usamos un sistema de "pesos" sobre base 100.
+    // El Dorado empieza con 0.5 (casi imposible). Los otros reparten el 99.5 restante.
+    let sectores = [
+        { nombre: 'Dorado', color: '#FFD700', peso: 0.5 },
+        { nombre: 'Rojo', color: '#ff4d4d', peso: 19.9 },
+        { nombre: 'Azul', color: '#4da6ff', peso: 19.9 },
+        { nombre: 'Verde', color: '#4dff88', peso: 19.9 },
+        { nombre: 'Amarillo', color: '#ffff4d', peso: 19.9 },
+        { nombre: 'Morado', color: '#b366ff', peso: 19.9 }
+    ];
+
+    const canvas = document.getElementById('ruleta');
+    const ctx = canvas.getContext('2d');
+    const btnGirar = document.getElementById('btnGirar');
+    const txtResultado = document.getElementById('resultado');
+    const txtContador = document.getElementById('contador-tiradas');
+    
+    let anguloActual = 0;
+    let ejecutando = false;
+
+    function dibujarRuleta() {
+        const totalPeso = sectores.reduce((sum, s) => sum + s.peso, 0);
+        let anguloInicio = anguloActual;
+
+        sectores.forEach(sector => {
+            const anguloSector = (sector.peso / totalPeso) * 2 * Math.PI;
+            
+            ctx.beginPath();
+            ctx.moveTo(175, 175);
+            ctx.arc(175, 175, 175, anguloInicio, anguloInicio + anguloSector);
+            ctx.fillStyle = sector.color;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#ffffff';
+            ctx.stroke();
+
+            ctx.save();
+            ctx.translate(175, 175);
+            ctx.rotate(anguloInicio + anguloSector / 2);
+            ctx.textAlign = "right";
+            ctx.fillStyle = "#333";
+            ctx.font = "bold 13px sans-serif";
+            ctx.fillText(sector.nombre, 150, 5);
+            ctx.restore();
+
+            anguloInicio += anguloSector;
+        });
+        
+        actualizarPanel(totalPeso);
+    }
+
+    function actualizarPanel(totalPeso) {
+        const lista = document.getElementById('lista-colores');
+        lista.innerHTML = '';
+        
+        sectores.forEach(sector => {
+            const porcentaje = ((sector.peso / totalPeso) * 100).toFixed(1);
+            
+            const fila = document.createElement('div');
+            fila.className = 'color-row';
+            fila.innerHTML = `
+                <div style="display:flex; align-items:center;">
+                    <span class="color-badge" style="background-color: ${sector.color}"></span>
+                    <span>${sector.nombre}</span>
+                </div>
+                <strong>${porcentaje}%</strong>
+            `;
+            lista.appendChild(fila);
+        });
+        txtContador.textContent = `Tirada actual: ${numeroTirada}`;
+    }
+
+    function girar() {
+        if (ejecutando) return;
+        ejecutando = true;
+        btnGirar.disabled = true;
+        txtResultado.textContent = "Girando...";
+
+        const vueltas = Math.floor(Math.random() * 5) + 5;
+        const gradosExtra = Math.random() * 2 * Math.PI;
+        const anguloObjetivo = anguloActual + (vueltas * 2 * Math.PI) + gradosExtra;
+        
+        const duracion = 4000;
+        const inicioAnimacion = performance.now();
+
+        function animar(ahora) {
+            const progreso = (ahora - inicioAnimacion) / duracion;
+            
+            if (progreso < 1) {
+                const multiplicador = 1 - Math.pow(1 - progreso, 3);
+                anguloActual = anguloObjetivo * multiplicador;
+                dibujarRuleta();
+                requestAnimationFrame(animar);
+            } else {
+                anguloActual = anguloObjetivo % (2 * Math.PI);
+                dibujarRuleta();
+                calcularGanador();
+            }
+        }
+        requestAnimationFrame(animar);
+    }
+
+    function calcularGanador() {
+        const totalPeso = sectores.reduce((sum, s) => sum + s.peso, 0);
+        let anguloFlecha = (1.5 * Math.PI - anguloActual) % (2 * Math.PI);
+        if (anguloFlecha < 0) anguloFlecha += 2 * Math.PI;
+
+        let anguloAcumulado = 0;
+        let indiceGanador = 0;
+
+        for (let i = 0; i < sectores.length; i++) {
+            const anguloSector = (sectores[i].peso / totalPeso) * 2 * Math.PI;
+            if (anguloFlecha >= anguloAcumulado && anguloFlecha <= anguloAcumulado + anguloSector) {
+                indiceGanador = i;
+                break;
+            }
+            anguloAcumulado += anguloSector;
+        }
+
+        const ganador = sectores[indiceGanador];
+        txtResultado.textContent = `¡Salió el color ${ganador.nombre}!`;
+        
+        // --- AVANCE DE TIRADA Y LÓGICA DINÁMICA ---
+        numeroTirada++;
+
+        if (ganador.nombre === 'Dorado') {
+            // Si sale el Dorado, se reinicia la racha por completo
+            sectores[0].peso = 0.5;
+            for(let i=1; i<sectores.length; i++) sectores[i].peso = 19.9;
+            numeroTirada = 1; 
+        } else {
+            // Lógica normal para los otros colores (el ganador pierde 20% de su tamaño)
+            const penalizacion = ganador.peso * 0.20;
+            ganador.peso -= penalizacion;
+            
+            // Repartimos lo que perdió el ganador entre el resto (excepto el dorado)
+            const reparto = penalizacion / (sectores.length - 2); 
+            sectores.forEach((sector, i) => {
+                if (i !== indiceGanador && sector.nombre !== 'Dorado') {
+                    sector.peso += reparto;
+                }
+            });
+        }
+
+        // FORZAR EL REGLAJE DEL DORADO EN LA TIRADA 7 O SUPERIOR
+        if (numeroTirada >= 7 && sectores[0].peso < 30) {
+            // Forzamos al Dorado a valer 42.8 unidades de peso, lo que equivale exactamente al 30% 
+            // de la ruleta cuando el total es aproximado a 142.
+            sectores[0].peso = 42.8; 
+        }
+
+        dibujarRuleta();
+        ejecutando = false;
+        btnGirar.disabled = false;
+    }
+
+    dibujarRuleta();
+</script>
+
+</body>
+</html>
